@@ -1,14 +1,23 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import os
+import logging
+
+# Logging so Render shows useful output
+logging.basicConfig(level=logging.INFO)
 
 # =============================================
-# CONFIG - Fill these in before running
+# TOKEN - reads from environment variable
 # =============================================
-import os
 TOKEN = os.getenv('TOKEN')
 
-# The exact role names to check for (case-sensitive - match your server's role names)
+if not TOKEN:
+    raise ValueError("No TOKEN environment variable set! Add it in Render > Environment.")
+
+# =============================================
+# Role names - must match your server exactly
+# =============================================
 TRACKED_ROLES = [
     'Founder',
     'OWNER',
@@ -23,27 +32,24 @@ TRACKED_ROLES = [
 # Bot Setup
 # =============================================
 intents = discord.Intents.default()
-intents.members = True  # Requires "Server Members" privileged intent in Dev Portal
+intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-
 @bot.event
 async def on_ready():
-    print(f'✅ Logged in as {bot.user}')
+    print(f'✅ Logged in as {bot.user} (ID: {bot.user.id})')
     try:
         synced = await bot.tree.sync()
         print(f'✅ Synced {len(synced)} slash command(s)')
     except Exception as e:
         print(f'❌ Failed to sync commands: {e}')
 
-
 # =============================================
 # /check Command
 # =============================================
 @bot.tree.command(name='check', description='Lists all server members and their staff roles')
 async def check(interaction: discord.Interaction):
-    # Defer immediately — prevents the 3 second timeout error
     await interaction.response.defer(thinking=True)
 
     guild = interaction.guild
@@ -51,19 +57,18 @@ async def check(interaction: discord.Interaction):
         await interaction.followup.send('❌ This command can only be used in a server.')
         return
 
-    # Fetch all members properly using async iterator
-    members = [m async for m in guild.fetch_members(limit=None)]
+    try:
+        members = [m async for m in guild.fetch_members(limit=None)]
+    except Exception as e:
+        await interaction.followup.send(f'❌ Failed to fetch members: {e}')
+        return
 
     lines = []
-
     for member in members:
         if member.bot:
-            continue  # Skip bots
-
-        # Find which tracked roles this member has
+            continue
         member_role_names = [role.name for role in member.roles]
         matched_roles = [r for r in TRACKED_ROLES if r in member_role_names]
-
         if matched_roles:
             lines.append(f'**{member.name}** — {", ".join(matched_roles)}')
 
@@ -71,7 +76,6 @@ async def check(interaction: discord.Interaction):
         await interaction.followup.send('No members found with any of the tracked staff roles.')
         return
 
-    # Split into pages of 30 entries each (Discord embed limit: 4096 chars)
     chunk_size = 30
     chunks = [lines[i:i + chunk_size] for i in range(0, len(lines), chunk_size)]
 
@@ -89,8 +93,7 @@ async def check(interaction: discord.Interaction):
         else:
             await interaction.channel.send(embed=embed)
 
-
 # =============================================
-# Run the bot
+# Run
 # =============================================
-bot.run('MTQ5MDUyMjY0NjQwMjgzMDM3Nw.GHSlIM.-yQFjXVcuN4ha0lWjoO-a1J8PmSo118kg5z31Q')
+bot.run('MTQ5MDUyMjY0NjQwMjgzMDM3Nw.GZuQnM.GWOEBOSW5gg4j2CFZEhVTUeXBJqSgdv-oW23Mk')
