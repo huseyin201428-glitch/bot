@@ -5,7 +5,8 @@ from discord import app_commands
 # =============================================
 # CONFIG - Fill these in before running
 # =============================================
-TOKEN = 'YOUR_BOT_TOKEN_HERE'
+import os
+TOKEN = os.getenv('TOKEN')
 
 # The exact role names to check for (case-sensitive - match your server's role names)
 TRACKED_ROLES = [
